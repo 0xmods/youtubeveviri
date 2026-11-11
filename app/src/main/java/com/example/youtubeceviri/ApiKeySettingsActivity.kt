@@ -1,8 +1,12 @@
 package com.example.youtubeceviri
 
+import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.util.Log
 import android.widget.Button
 import android.widget.EditText
@@ -10,7 +14,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.documentfile.provider.DocumentFile
+import java.io.File
 
 /**
  * Kullanıcının kendi Gemini / NVIDIA API anahtarlarını girdiği ekran.
@@ -32,6 +38,25 @@ class ApiKeySettingsActivity : AppCompatActivity() {
     ) { uri: Uri? ->
         if (uri != null) {
             importKeysFromDirectory(uri)
+        }
+    }
+
+    /**
+     * TV'lerde SAF dosya seçici (DocumentsUI) çoğu zaman bulunmaz.
+     * Bu durumda depolama okuma izni alıp bilinen yolları (USB kökleri,
+     * /sdcard/Download vb.) doğrudan tararız.
+     */
+    private val storagePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted: Boolean ->
+        if (granted) {
+            importKeysByPathScan()
+        } else {
+            Toast.makeText(
+                this,
+                "Depolama izni verilmedi — USB'den okuyamıyorum.",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
@@ -85,11 +110,78 @@ class ApiKeySettingsActivity : AppCompatActivity() {
     }
 
     private fun startFileImport() {
+        // 1. Önce SAF dosya seçici dene (telefonlarda / dosya seçici olan TV'lerde çalışır)
         try {
             importFileLauncher.launch(null)
+            return
+        } catch (e: ActivityNotFoundException) {
+            Log.w(TAG, "SAF dosya seçici yok, yol taramasına geçiliyor: ${e.message}")
         } catch (e: Exception) {
-            Log.w(TAG, "Dosya seçici açılamadı: ${e.message}")
-            Toast.makeText(this, "Dosya seçici açılamadı: ${e.message}", Toast.LENGTH_LONG).show()
+            Log.w(TAG, "Dosya seçici açılamadı, yol taramasına geçiliyor: ${e.message}")
+        }
+
+        // 2. Fallback: dosya seçici yok — depolama izniyle doğrudan yolları tara
+        if (hasStoragePermission()) {
+            importKeysByPathScan()
+        } else {
+            Toast.makeText(
+                this,
+                "Dosya seçici yok; USB'deki api_keys.txt için depolama izni istiyorum…",
+                Toast.LENGTH_LONG
+            ).show()
+            storagePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+    }
+
+    private fun hasStoragePermission(): Boolean =
+        ContextCompat.checkSelfPermission(
+            this, Manifest.permission.READ_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Bilinen yollarda api_keys.txt (veya keys.txt) arar:
+     * - Dahili depolama kökü ve /Download
+     * - /storage altındaki tüm birimler (USB bellekler burada mount edilir) ve /Download
+     */
+    private fun importKeysByPathScan() {
+        try {
+            val candidateNames = setOf("api_keys.txt", "livesub_keys.txt", "keys.txt")
+            val roots = mutableListOf(
+                Environment.getExternalStorageDirectory() ?: File("/sdcard")
+            )
+            File("/storage").listFiles()?.let { roots.addAll(it) }
+
+            val searchPaths = mutableListOf<File>()
+            for (root in roots) {
+                for (name in candidateNames) {
+                    searchPaths += File(root, name)
+                    searchPaths += File(root, "Download/$name")
+                }
+            }
+
+            for (file in searchPaths) {
+                if (file.isFile && file.canRead()) {
+                    val content = try {
+                        file.readText()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "${file.absolutePath} okunamadı: ${e.message}")
+                        continue
+                    }
+                    if (applyKeyFileContent(content)) {
+                        Toast.makeText(this, "Anahtarlar yüklendi: ${file.absolutePath} ✅", Toast.LENGTH_LONG).show()
+                        return
+                    }
+                }
+            }
+
+            Toast.makeText(
+                this,
+                "api_keys.txt bulunamadı. Dosyayı USB belleğin KÖK dizinine veya Download klasörüne koyun.",
+                Toast.LENGTH_LONG
+            ).show()
+        } catch (e: Exception) {
+            Log.e(TAG, "Yol taraması hatası: ${e.message}", e)
+            Toast.makeText(this, "Tarama hatası: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
