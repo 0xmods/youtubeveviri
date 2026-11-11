@@ -41,6 +41,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // api_keys.txt'i otomatik ara: USB/depolamaya yeni dosya konmuşsa
+        // anahtarlar sessizce güncellenir, kullanıcı hiçbir şeye basmaz.
+        if (KeyFileImporter.autoImport(this)) {
+            Toast.makeText(this, "Anahtarlar api_keys.txt'ten otomatik güncellendi ✅", Toast.LENGTH_LONG).show()
+        }
         checkPermissionsAndStatus()
     }
 

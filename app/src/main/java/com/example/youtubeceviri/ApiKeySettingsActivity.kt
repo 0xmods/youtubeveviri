@@ -1,12 +1,13 @@
 package com.example.youtubeceviri
 
 import android.Manifest
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.Settings
 import android.util.Log
 import android.widget.Button
 import android.widget.EditText
@@ -21,11 +22,12 @@ import java.io.File
 /**
  * Kullanıcının kendi Gemini / NVIDIA API anahtarlarını girdiği ekran.
  *
- * İki yöntem sunar:
- * 1. USB/Depolama'dan "api_keys.txt" dosyası içe aktarma (TV'de yazmaya gerek yok)
- * 2. Elle yazma (kumanda ile)
- *
- * Girilen anahtarlar SharedPreferences'te saklanır (APK dışına çıkmaz).
+ * İçe aktarma yöntemleri (TV'lerde yazma zor olduğundan):
+ * 1. Doğrudan yol taraması (USB kökleri + Download) — Android 12 ve altında
+ * 2. Sistem dosya seçici (GET_CONTENT) — cihazda dosya yöneticisi varsa
+ * 3. SAF klasör seçici — DocumentsUI olan cihazlarda
+ * 4. "Tüm dosyalara erişim" izni (MANAGE_EXTERNAL_STORAGE) — Android 13+ TV'ler
+ *    için son çare (bu TV: Android 14, READ_EXTERNAL_STORAGE geçersiz)
  */
 class ApiKeySettingsActivity : AppCompatActivity() {
 
@@ -41,20 +43,42 @@ class ApiKeySettingsActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * TV'lerde SAF dosya seçici (DocumentsUI) çoğu zaman bulunmaz.
-     * Bu durumda depolama okuma izni alıp bilinen yolları (USB kökleri,
-     * /sdcard/Download vb.) doğrudan tararız.
-     */
-    private val storagePermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted: Boolean ->
-        if (granted) {
+    /** Sistem dosya seçici: GET_CONTENT herhangi bir dosyayı döndürür */
+    private val getContentLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            importKeysFromUri(uri)
+        }
+    }
+
+    /** "Tüm dosyalara erişim" ayar ekranından dönünce tekrar tarar */
+    private val allFilesAccessLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (hasAllFilesAccess()) {
             importKeysByPathScan()
         } else {
             Toast.makeText(
                 this,
-                "Depolama izni verilmedi — USB'den okuyamıyorum.",
+                "İzin verilmedi — dosyadan yükleme yapılamaz.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    /** Android 12- cihazlar için runtime depolama izni */
+    private val storagePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted: Boolean ->
+        if (granted) {
+            if (!importKeysByPathScan()) {
+                tryGetContent()
+            }
+        } else {
+            Toast.makeText(
+                this,
+                "Depolama izni verilmedi — dosyadan okuyamıyorum.",
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -109,41 +133,90 @@ class ApiKeySettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun startFileImport() {
-        // 1. Önce SAF dosya seçici dene (telefonlarda / dosya seçici olan TV'lerde çalışır)
-        try {
-            importFileLauncher.launch(null)
-            return
-        } catch (e: ActivityNotFoundException) {
-            Log.w(TAG, "SAF dosya seçici yok, yol taramasına geçiliyor: ${e.message}")
-        } catch (e: Exception) {
-            Log.w(TAG, "Dosya seçici açılamadı, yol taramasına geçiliyor: ${e.message}")
+    override fun onResume() {
+        super.onResume()
+        // Dosyadan anahtar güncellenmiş olabilir — sessizce kontrol et
+        if (KeyFileImporter.autoImport(this)) {
+            if (ApiKeyManager.hasCustomGemini()) etGeminiKey.setText(ApiKeyManager.getGeminiKey())
+            if (ApiKeyManager.hasCustomNvidia()) etNvidiaKey.setText(ApiKeyManager.getNvidiaKey())
+            updateStatus()
         }
+    }
 
-        // 2. Fallback: dosya seçici yok — depolama izniyle doğrudan yolları tara
-        if (hasStoragePermission()) {
-            importKeysByPathScan()
-        } else {
+    private fun startFileImport() {
+        // 1. Doğrudan yol taraması (izinler uygunsa çalışır: Android 12- veya
+        //    tüm-dosyalar izni verilmiş Android 13+)
+        if (canReadSharedStorage() && importKeysByPathScan()) return
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11+ (özellikle 13/14 TV'ler): GET_CONTENT fotoğraf
+            // seçicisine yönlendirilir (txt göstermez), SAF çoğu TV'de yok.
+            // Doğrudan "Tüm dosyalara erişim" ayar ekranına git; dönünce
+            // otomatik tarama yapılır. (Arka arkaya başarısız seçici
+            // açma girişimleri düşük RAM'li TV'yi donduruyordu.)
             Toast.makeText(
                 this,
-                "Dosya seçici yok; USB'deki api_keys.txt için depolama izni istiyorum…",
+                "Açılan ekranda 'Tüm dosyalara erişime izin ver' deyin — api_keys.txt otomatik bulunacak.",
                 Toast.LENGTH_LONG
             ).show()
+            allFilesAccessLauncher.launch(manageAllFilesIntent())
+            return
+        }
+
+        // Android 10 ve altı: sistem dosya seçici (dosya yöneticileri) dene
+        if (tryGetContent()) return
+
+        // SAF klasör seçici (DocumentsUI olan cihazlarda)
+        try {
+            importFileLauncher.launch(null)
+        } catch (e: Exception) {
+            Log.w(TAG, "SAF seçici de açılamadı: ${e.message}")
+        }
+
+        if (!canReadSharedStorage()) {
             storagePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
     }
 
-    private fun hasStoragePermission(): Boolean =
-        ContextCompat.checkSelfPermission(
-            this, Manifest.permission.READ_EXTERNAL_STORAGE
-        ) == PackageManager.PERMISSION_GRANTED
+    private fun tryGetContent(): Boolean {
+        return try {
+            getContentLauncher.launch("*/*")
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "GET_CONTENT seçici yok: ${e.message}")
+            false
+        }
+    }
+
+    private fun manageAllFilesIntent(): Intent =
+        Intent(
+            Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+            Uri.parse("package:$packageName")
+        )
+
+    private fun hasAllFilesAccess(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()
+
+    private fun canReadSharedStorage(): Boolean {
+        if (hasAllFilesAccess()) return true
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+: READ_EXTERNAL_STORAGE artık yeterli değil
+            false
+        } else {
+            ContextCompat.checkSelfPermission(
+                this, Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+        }
+    }
 
     /**
      * Bilinen yollarda api_keys.txt (veya keys.txt) arar:
      * - Dahili depolama kökü ve /Download
      * - /storage altındaki tüm birimler (USB bellekler burada mount edilir) ve /Download
+     *
+     * @return dosya bulundu ve anahtarlar uygulandı ise true
      */
-    private fun importKeysByPathScan() {
+    private fun importKeysByPathScan(): Boolean {
         try {
             val candidateNames = setOf("api_keys.txt", "livesub_keys.txt", "keys.txt")
             val roots = mutableListOf(
@@ -160,7 +233,7 @@ class ApiKeySettingsActivity : AppCompatActivity() {
             }
 
             for (file in searchPaths) {
-                if (file.isFile && file.canRead()) {
+                if (file.isFile) {
                     val content = try {
                         file.readText()
                     } catch (e: Exception) {
@@ -169,7 +242,7 @@ class ApiKeySettingsActivity : AppCompatActivity() {
                     }
                     if (applyKeyFileContent(content)) {
                         Toast.makeText(this, "Anahtarlar yüklendi: ${file.absolutePath} ✅", Toast.LENGTH_LONG).show()
-                        return
+                        return true
                     }
                 }
             }
@@ -183,6 +256,7 @@ class ApiKeySettingsActivity : AppCompatActivity() {
             Log.e(TAG, "Yol taraması hatası: ${e.message}", e)
             Toast.makeText(this, "Tarama hatası: ${e.message}", Toast.LENGTH_LONG).show()
         }
+        return false
     }
 
     /**
@@ -219,7 +293,17 @@ class ApiKeySettingsActivity : AppCompatActivity() {
                 return
             }
 
-            val content = contentResolver.openInputStream(keysFile.uri)
+            importKeysFromUri(keysFile.uri)
+        } catch (e: Exception) {
+            Log.e(TAG, "Dosya içe aktarma hatası: ${e.message}", e)
+            Toast.makeText(this, "Dosya okunamadı: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** Tek bir dosyanın içeriğini (content:// URI) okuyup uygular */
+    private fun importKeysFromUri(uri: Uri) {
+        try {
+            val content = contentResolver.openInputStream(uri)
                 ?.bufferedReader()?.use { it.readText() } ?: ""
 
             if (applyKeyFileContent(content)) {
@@ -232,7 +316,7 @@ class ApiKeySettingsActivity : AppCompatActivity() {
                 ).show()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Dosya içe aktarma hatası: ${e.message}", e)
+            Log.e(TAG, "URI okuma hatası: ${e.message}", e)
             Toast.makeText(this, "Dosya okunamadı: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
