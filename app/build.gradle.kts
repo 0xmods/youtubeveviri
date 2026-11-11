@@ -40,6 +40,21 @@ android {
             // anahtarlarını girer (ApiKeyManager üzerinden SharedPreferences).
             buildConfigField("String", "GEMINI_API_KEY", "\"\"")
             buildConfigField("String", "NVIDIA_API_KEY", "\"\"")
+
+            // İmzalama: keystore.properties (git'e girmez) varsa kullanılır.
+            // Yoksa APK imzasız üretilir (uyarı verir, hata vermez).
+            val keystoreProps = Properties().apply {
+                val f = rootProject.file("keystore.properties")
+                if (f.exists()) f.inputStream().use { load(it) }
+            }
+            if (keystoreProps.getProperty("storeFile") != null) {
+                signingConfig = signingConfigs.create("release") {
+                    storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                    storePassword = keystoreProps.getProperty("storePassword")
+                    keyAlias = keystoreProps.getProperty("keyAlias")
+                    keyPassword = keystoreProps.getProperty("keyPassword")
+                }
+            }
         }
     }
     compileOptions {

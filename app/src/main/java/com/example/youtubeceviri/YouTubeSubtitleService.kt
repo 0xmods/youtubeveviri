@@ -203,6 +203,13 @@ class YouTubeSubtitleService : AccessibilityService() {
         Log.d(TAG, "YouTubeSubtitleService kesintiye uğradı.")
     }
 
+    /** Servisi durdurmak için PUBLIC fonksiyon */
+    fun forceStop() {
+        isServiceRunning = false
+        overlayManager?.removeOverlay()
+        serviceScope.cancel()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         isServiceRunning = false

@@ -9,6 +9,12 @@ build/
 .cxx
 local.properties
 
+# İmzalama anahtarları (ASLA repoya girmez)
+keystore.properties
+release/
+*.jks
+*.keystore
+
 # Proje görselleri (test/diagnostik)
 *.png
 !app/src/main/res/**/*.png

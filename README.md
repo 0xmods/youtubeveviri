@@ -27,30 +27,44 @@ GEMINI_API_KEY=AIza...sizin-anahtariniz
 NVIDIA_API_KEY=nvapi-...sizin-anahtariniz
 ```
 
-(Sadece Gemini satırı da yeterli. Anahtarları nasıl alacağınızı 🔑 bölümünde
-adım adım anlattık.)
+> ⚠️ **Dikkat:** `AIza...` ile başlayan anahtar **Gemini**'nindir,
+> `nvapi-` ile başlayan ise **NVIDIA**'nındır. Satırları karıştırmayın.
+> (Sadece Gemini satırı da yeterli — NVIDIA isteğe bağlı yedek motordur.)
 
-### 3. İkisini USB belleğe koyun ve TV'ye takın
+Anahtarları nasıl alacağınızı 🔑 bölümünde adım adım anlattık.
 
-```
-USB Bellek/
-├── YoutubeCanliCeviri-v1.0.apk
-└── api_keys.txt
-```
+### 3. Dosyayı TV'nin depolamasına koyun
+
+Dosyayı şu konumlardan birine bırakın — uygulama **otomatik olarak** bulur:
+
+| Konum | Nasıl konur? |
+|---|---|
+| **`/sdcard/Download/api_keys.txt`** ⭐ | Telefondan "Send Files to TV" ile gönderin, veya USB'ye `Download` klasörü açıp için koyun |
+| **USB belleğin kökü** | USB'ye `api_keys.txt`'i kopyalayın, TV'ye takın |
+| **USB'deki `Download`** | USB'de `Download` klasörüne koyun |
+| **`/sdcard/api_keys.txt`** | adb push veya dosya yöneticisiyle ana depolama köküne |
+
+**Yöntemler:**
 
 | Yöntem | Nasıl? |
 |---|---|
-| **USB bellek** | İki dosyayı USB'ye kopyalayın, TV'ye takın, dosya yöneticisiyle açın |
-| **Send Files to TV** | TV'ye ve telefona "Send Files to TV" uygulamasını kurup dosyaları aktarın |
-| **Downloader** | TV'deki Downloader uygulamasına doğrudan indirme linkini girin |
+| **Send Files to TV** ⭐ | TV'ye ve telefona "Send Files to TV" uygulamasını kurup dosyayı gönderin (en kolayı) |
+| **USB bellek** | APK + `api_keys.txt`'i USB'ye kopyalayın, TV'ye takın |
+| **Downloader** | TV'deki Downloader uygulamasına dosyanın indirme linkini girin |
+| **adb** | `adb push api_keys.txt /sdcard/Download/api_keys.txt` |
 
-### 4. APK'yı kurun ve anahtarları yükleyin
+### 4. APK'yı kurun — anahtarlar kendiliğinden yüklenir
 
 1. Dosya yöneticisiyle `YoutubeCanliCeviri-v1.0.apk`'yı kurun
    (ilk kurulumda "bilinmeyen kaynak" izni istenir → verin)
-2. Uygulamayı açın → **"API Anahtarlarını Ayarla"** → **"Dosyadan Yükle (USB/Depolama)"**
-3. Dosya seçiciden USB belleği seçin → `api_keys.txt` otomatik bulunur ve kutular doldurulur
-4. **Kaydet** deyin — bitti! Anahtarlar TV'de saklanır, USB'yi çıkarabilirsiniz.
+2. **Bir kere** dosya izni verin: Uygulamayı açın → **"API Anahtarlarını Ayarla"** →
+   **"Dosyadan Yükle (USB/Depolama)"** → açılan ekranda **YoutubeCanlıÇeviri**'yi
+   bulup **"Tüm dosyalara erişime izin ver"** deyin (Android 13+ TV'lerde gerekir)
+3. Uygulama `api_keys.txt`'i bulur, anahtarları kutulara doldurur → **Kaydet**
+
+> 🔄 **Otomotik:** Bundan sonra dosyayı güncellerseniz (ör. yeni anahtar),
+> uygulamayı bir kez açıp kapatmanız yeterli — anahtarlar **kendiliğinden**
+> güncellenir, hiçbir butona basmanıza gerek kalmaz.
 
 > **Not:** Dağıtılan APK'da **API anahtarı yoktur** — herkes kendi ücretsiz
 > anahtarını kullanır, kimse kimseyi bekletmez. Anahtarlar sadece cihazınızda
@@ -118,8 +132,14 @@ GEMINI_API_KEY=AIza...your-key-here
 NVIDIA_API_KEY=nvapi-...your-key-here
 ```
 
-**Son kullanıcılar** anahtarları uygulama içinde girer:
-Ana ekran → "API Anahtarlarını Ayarla" → gir → Kaydet.
+**Son kullanıcılar** dosyayı TV'ye koyar (aşağıdaki akış), uygulama otomatik yükler:
+
+1. `api_keys.txt` → `/sdcard/Download/` veya USB kökü
+2. Uygulamayı açın → **"API Anahtarlarını Ayarla"** → **"Dosyadan Yükle"** →
+   bir kere depolama izni verin
+3. Anahtarlar otomatik yüklenir; dosya değişirse uygulamayı açmak yeterli
+4. (İsterseniz kumandayla elle de girebilirsiniz → **Kaydet**)
+
 (Anahtarlar cihazda SharedPreferences'te saklanır, repo'ya girmez.)
 
 ---
