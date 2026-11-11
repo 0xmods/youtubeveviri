@@ -17,7 +17,7 @@
             android:id="@+id/tvAppTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="YouTube TV Türkçe Altyazı Çevirici"
+            android:text="YoutubeCanlıÇeviri"
             android:textColor="#FFFFFF"
             android:textSize="28sp"
             android:textStyle="bold" />
@@ -27,7 +27,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="NVIDIA Riva (riva-translate-4b-instruct-v2) Yapay Zekâ Destekli Canlı Çeviri"
+            android:text="Gemini + NVIDIA Yapay Zekâ Destekli Canlı Çeviri"
             android:textColor="#AAAAAA"
             android:textSize="16sp" />
 
