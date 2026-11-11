@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 object NvidiaTranslationService {
 
     private const val TAG = "RivaTranslate"
-    private val NIM_API_KEY = BuildConfig.NVIDIA_API_KEY
+    private val NIM_API_KEY get() = ApiKeyManager.getNvidiaKey()
     private const val NIM_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
     private const val NIM_MODEL = "nvidia/riva-translate-4b-instruct-v2"
 

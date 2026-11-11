@@ -32,6 +32,11 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ApiKeySettingsActivity"
+            android:exported="false"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize" />
+
         <service
             android:name=".YouTubeSubtitleService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"

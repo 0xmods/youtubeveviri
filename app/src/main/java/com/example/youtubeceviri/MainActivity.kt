@@ -24,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etTestInput: EditText
     private lateinit var btnTestTranslate: Button
     private lateinit var tvTestResult: TextView
+    private lateinit var tvApiKeyStatus: TextView
 
     private var overlayManager: SubtitleOverlayManager? = null
 
@@ -35,6 +36,7 @@ class MainActivity : AppCompatActivity() {
 
         initViews()
         setupListeners()
+        ApiKeyManager.init(this)
     }
 
     override fun onResume() {
@@ -51,6 +53,11 @@ class MainActivity : AppCompatActivity() {
         etTestInput = findViewById(R.id.etTestInput)
         btnTestTranslate = findViewById(R.id.btnTestTranslate)
         tvTestResult = findViewById(R.id.tvTestResult)
+        tvApiKeyStatus = findViewById(R.id.tvApiKeyStatus)
+
+        findViewById<Button>(R.id.btnOpenApiKeys).setOnClickListener {
+            startActivity(Intent(this, ApiKeySettingsActivity::class.java))
+        }
     }
 
     private fun setupListeners() {
@@ -118,6 +125,25 @@ class MainActivity : AppCompatActivity() {
         } else {
             tvOverlayStatus.text = "Durum: İZİN GEREKLİ (Devre Dışı - Etkinleştirmek İçin Butona Basın)"
             tvOverlayStatus.setTextColor(android.graphics.Color.parseColor("#FF5252"))
+        }
+
+        // 3. API Anahtar Durumu
+        val geminiCustom = ApiKeyManager.hasCustomGemini()
+        val nvidiaCustom = ApiKeyManager.hasCustomNvidia()
+        val hasEmbedded = BuildConfig.GEMINI_API_KEY.isNotEmpty()
+        when {
+            geminiCustom || nvidiaCustom -> {
+                tvApiKeyStatus.text = "Durum: ✅ KENDİ ANAHTARINIZ AKTİF (kota sizde)"
+                tvApiKeyStatus.setTextColor(android.graphics.Color.parseColor("#00E676"))
+            }
+            hasEmbedded -> {
+                tvApiKeyStatus.text = "Durum: 🔧 Geliştirici modu (gömülü anahtarlar)"
+                tvApiKeyStatus.setTextColor(android.graphics.Color.parseColor("#FFD700"))
+            }
+            else -> {
+                tvApiKeyStatus.text = "Durum: ⚠️ ANAHTAR GEREKLİ — Ayarlardan girin"
+                tvApiKeyStatus.setTextColor(android.graphics.Color.parseColor("#FF5252"))
+            }
         }
     }
 

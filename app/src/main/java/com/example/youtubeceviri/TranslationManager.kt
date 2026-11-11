@@ -13,7 +13,7 @@ object TranslationManager {
     private const val TAG = "TranslationManager"
 
     fun init(context: Context) {
-        // API tabanlı çeviriler için ekstra init gerekmiyor.
+        ApiKeyManager.init(context)
     }
 
     suspend fun translateToTurkish(englishText: String): String? {

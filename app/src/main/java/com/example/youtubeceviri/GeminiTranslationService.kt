@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 object GeminiTranslationService {
 
     private const val TAG = "GeminiService"
-    private val API_KEY = BuildConfig.GEMINI_API_KEY
+    private val API_KEY get() = ApiKeyManager.getGeminiKey()
     // Flash-Lite: daha yüksek ücretsiz kota limiti + daha düşük gecikme (canlı altyazı için ideal)
     private const val API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent"
 

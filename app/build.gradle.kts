@@ -15,17 +15,6 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
-        // API anahtarları local.properties'ten okunur (git'e girmez).
-        // Kendi anahtarlarınızı local.properties içine yazın:
-        //   GEMINI_API_KEY=...   (https://aistudio.google.com/apikey)
-        //   NVIDIA_API_KEY=...   (https://build.nvidia.com)
-        val localProps = Properties().apply {
-            val f = rootProject.file("local.properties")
-            if (f.exists()) f.inputStream().use { load(it) }
-        }
-        buildConfigField("String", "GEMINI_API_KEY", "\"${localProps.getProperty("GEMINI_API_KEY", "")}\"")
-        buildConfigField("String", "NVIDIA_API_KEY", "\"${localProps.getProperty("NVIDIA_API_KEY", "")}\"")
     }
 
     buildFeatures {
@@ -33,9 +22,24 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Debug build: geliştiricinin kendi anahtarları (local.properties).
+            // Release build'e ASLA anahtar gömülmez — kullanıcılar kendi
+            // ücretsiz anahtarlarını uygulama içi ayarlardan girer.
+            val localProps = Properties().apply {
+                val f = rootProject.file("local.properties")
+                if (f.exists()) f.inputStream().use { load(it) }
+            }
+            buildConfigField("String", "GEMINI_API_KEY", "\"${localProps.getProperty("GEMINI_API_KEY", "")}\"")
+            buildConfigField("String", "NVIDIA_API_KEY", "\"${localProps.getProperty("NVIDIA_API_KEY", "")}\"")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Dağıtılabilir APK'da anahtar yok: kullanıcılar ayarlardan kendi
+            // anahtarlarını girer (ApiKeyManager üzerinden SharedPreferences).
+            buildConfigField("String", "GEMINI_API_KEY", "\"\"")
+            buildConfigField("String", "NVIDIA_API_KEY", "\"\"")
         }
     }
     compileOptions {
