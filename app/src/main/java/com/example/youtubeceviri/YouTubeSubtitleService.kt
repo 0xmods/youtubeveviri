@@ -27,6 +27,14 @@ class YouTubeSubtitleService : AccessibilityService() {
         private const val TAG = "YouTubeSubtitle"
         var isServiceRunning: Boolean = false
             private set
+        /**
+         * Başlat/Durdur butonunun kontrol ettiği duraklatma bayrağı.
+         * AccessibilityService sistem tarafından yönetildiği için stopService()
+         * ile durdurulamaz; bu bayrak tarama döngüsünü sessize alır.
+         * Uygulama her açıldığında çeviri DURAKLATILMIŞ başlar.
+         */
+        @Volatile
+        var isPaused: Boolean = true
     }
 
     override fun onServiceConnected() {
@@ -59,6 +67,12 @@ class YouTubeSubtitleService : AccessibilityService() {
         serviceScope.launch(Dispatchers.IO) {
             while (isServiceRunning) {
                 try {
+                    // Çeviri duraklatıldıysa ekran taraması yapma ve altyazı çerçevesini gizle
+                    if (isPaused) {
+                        overlayManager?.hideSubtitle()
+                        delay(500)
+                        continue
+                    }
                     // Ekran boşken tembel modda taramaya devam et (döngüyü asla durdurma:
                     // YouTube tam ekranda pencere olayı göndermiyor)
                     if (!isScanning) {
@@ -185,6 +199,8 @@ class YouTubeSubtitleService : AccessibilityService() {
 
     private suspend fun translateAndShow(textToTranslate: String) {
         if (textToTranslate.isBlank() || textToTranslate == lastProcessedText) return
+        // Durdur'a basıldıktan sonra yolda olan bir çeviri ekranda belirmesin
+        if (isPaused) return
 
         lastProcessedText = textToTranslate
         Log.d(TAG, "Çeviriye Gönderilen Cümle: [$textToTranslate]")
