@@ -1,0 +1,14 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+build/
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Proje görselleri (test/diagnostik)
+*.png
+!app/src/main/res/**/*.png

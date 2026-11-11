@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">YouTube TV Altyazı Çevirici</string>
+    <string name="translate_button">Çevir</string>
+    <string name="title">YouTube TV Türkçe Altyazı Çeviri</string>
+    <string name="empty_message">Çevirilecek İngilizce metni girin...</string>
+    <string name="accessibility_service_description">YouTube videolarındaki İngilizce altyazıları otomatik algılayıp NVIDIA Riva AI ile Türkçe\'ye çevirir ve ekranda altyazı penceresi gösterir.</string>
+</resources>
